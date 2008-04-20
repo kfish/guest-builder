@@ -398,9 +398,6 @@ install_os() {
 }
 
 install_grub() {
-  try_run "Unmounting disk" \
-    grep -q $MOUNTPOINT && umount $MOUNTPOINT
-
   try_run "Installing grub to disk bootsector" \
     grub --device-map=/dev/null << EOF
 device (hd0) $ROOT
