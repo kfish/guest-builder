@@ -56,7 +56,7 @@ init_gentoo() {
 
   try_run "Initializing Gentoo guest" \
     "(cp initU.d/initU-gentoo $MOUNTPOINT/sbin && \
-      chroot $MOUNTPOINT /sbin/initU-gentoo -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+      chroot $MOUNTPOINT /sbin/initU-gentoo $DOMNAME)"
 
   try_run "Unmounting $MOUNTPOINT" \
     umount $MOUNTPOINT

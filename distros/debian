@@ -29,7 +29,7 @@ init_debian() {
 
   try_run "Initializing Debian guest filesystem" \
     "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
-      chroot $MOUNTPOINT /sbin/initU-debian -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+      chroot $MOUNTPOINT /sbin/initU-debian $DOMNAME)"
 
   if test "x$DRY_RUN" = "x" ; then
     cat > /etc/apt/sources.list << EOF

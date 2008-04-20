@@ -17,18 +17,6 @@ DISTRO="debian"
 # Default release to install (blank for per-distro default)
 RELEASE=""
 
-# Default IP address
-IP="10.1.0.100"
-
-# Default netmask
-NETMASK="255.255.0.0"
-
-# Default gateway
-GATEWAY="10.0.0.1"
-
-# Default nameserver
-NAMESERVER="10.0.0.1"
-
 # Loop device
 LOOP=$(losetup -f)
 
@@ -79,19 +67,13 @@ usage () {
   echo >&2 "  -s swap, --swap swap        Specify swap device or filename"
   echo >&2 "  -S size, --swap-size size   Set the swap size (MB)"
   echo >&2
-  echo >&2 "Xen options"
+  echo >&2 "Virtualization options"
   echo >&2 "  -c, --console               Create a running instance of the domain, and"
   echo >&2 "                              attach to its console"
   echo >&2 "  --create                    Create a running instance of the domain"
   echo >&2
-  echo >&2 "Networking options"
-  echo >&2 "  -I, --ip address            Set the IP address"
-  echo >&2 "  -N, --netmask address       Set the netmask"
-  echo >&2 "  -G, --gateway address       Set the gateway"
-  echo >&2 "  -D, --nameserver address    Set the DNS nameserver address"
-  echo >&2
   echo >&2 "Removal options"
-  echo >&2 "  -p, --purge                 Purge the filesystems and config for DomName"
+  echo >&2 "  -p, --purge                 Purge the filesystems and config for hostname"
   echo >&2
   echo >&2 "Miscellaneous options"
   echo >&2 "  -h, --help                  Display this help and exit"
