@@ -128,11 +128,11 @@ ROOT_XTYPE="file"
 ROOT_SIZE="2" # GiB
 
 GETOPTEST=`getopt --version`
-SHORTOPTS="nhvd:l:r:R:s:S:caI:N:G:D:p"
+SHORTOPTS="nhvd:l:r:R:s:S:cap"
 
 case $GETOPTEST in
 getopt*) # GNU getopt
-  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: console -l create -l auto -l ip:: -l netmask:: -l gateway:: -l nameserver:: -l purge -- +$SHORTOPTS $@`
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
   ;;
 *) # POSIX getopt ?
   TEMP=`getopt $SHORTOPTS $@`
@@ -187,23 +187,6 @@ while test "X$1" != "X--"; do
       ;;
     -a|--auto)
       do_auto=1
-      ;;
-
-    -I|--ip)
-      shift
-      IP=$1
-      ;;
-    -N|--netmask)
-      shift
-      NETMASK=$1
-      ;;
-    -G|--gateway)
-      shift
-      GATEWAY=$1
-      ;;
-    -D|--nameserver)
-      shift
-      NAMESERVER=$1
       ;;
 
     -p|--purge)
