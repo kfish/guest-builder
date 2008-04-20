@@ -5,8 +5,8 @@
 # Script name
 THIS="build-guest"
 
-# Where to store disk and swap images
-IMGDIR="$HOME/var/virt"
+# Where to store disk image
+IMGDIR="$HOME/var/guests"
 
 # Location of GRUB files
 GRUB_ORIG="/usr/lib/grub/x86_64-pc"
@@ -64,8 +64,6 @@ usage () {
   echo >&2 "                              Specify name of release to install"
   echo >&2 "  -r root, --root root        Specify root device or filename"
   echo >&2 "  -R size, --root-size size   Set the root filesystem size (GB)"
-  echo >&2 "  -s swap, --swap swap        Specify swap device or filename"
-  echo >&2 "  -S size, --swap-size size   Set the swap size (MB)"
   echo >&2
   echo >&2 "Virtualization options"
   echo >&2 "  -c, --console               Create a running instance of the domain, and"
@@ -128,16 +126,13 @@ distro_installed=0
 ROOT=""
 ROOT_XTYPE="file"
 ROOT_SIZE="2" # GiB
-SWAP=""
-SWAP_XTYPE="file"
-SWAP_SIZE="128" # MiB
 
 GETOPTEST=`getopt --version`
 SHORTOPTS="nhvd:l:r:R:s:S:caI:N:G:D:p"
 
 case $GETOPTEST in
 getopt*) # GNU getopt
-  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: -l swap:: -l swap-size:: -l console -l create -l auto -l ip:: -l netmask:: -l gateway:: -l nameserver:: -l purge -- +$SHORTOPTS $@`
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: console -l create -l auto -l ip:: -l netmask:: -l gateway:: -l nameserver:: -l purge -- +$SHORTOPTS $@`
   ;;
 *) # POSIX getopt ?
   TEMP=`getopt $SHORTOPTS $@`
@@ -178,17 +173,9 @@ while test "X$1" != "X--"; do
       shift
       ROOT=$1
       ;;
-    -s|--swap)
-      shift
-      SWAP=$1
-      ;;
     -R|--root-size)
       shift
       ROOT_SIZE=$1
-      ;;
-    -S|--swap-size)
-      shift
-      SWAP_SIZE=$1
       ;;
 
     -c|--console)
@@ -245,14 +232,9 @@ GUEST_NAME=$1
 GUEST_PATH="$IMGDIR/$GUEST_NAME"
 
 if test "x$ROOT" == "x" ; then
-  ROOT="$GUEST_PATH/disk"
+  ROOT="$GUEST_PATH/pristine"
 fi
 ROOT_LABEL="$GUEST_NAME-root"
-
-#if test "x$SWAP" == "x" ; then
-#  SWAP="$GUEST_PATH/swap"
-#fi
-#SWAP_LABEL="$GUEST_NAME-swap"
 
 MOUNTPOINT="/mnt/$GUEST_NAME"
 MOUNT_OPTS=""
@@ -454,7 +436,7 @@ do_cleanup=0
 if test "$distro_installed" -eq 1 ; then
   if test "$do_create" -eq 1 ; then
     try_run "Starting kvm" \
-      kvm $ROOT -net nic,macaddr=$MACADDR -net tap,script=/etc/qemu-ifup
+      kvm $ROOT -net nic,macaddr=$MACADDR -net tap
   fi
 fi
 
