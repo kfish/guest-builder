@@ -236,6 +236,8 @@ if test "x$ROOT" == "x" ; then
 fi
 ROOT_LABEL="$GUEST_NAME-root"
 
+QCOW2="$GUEST_PATH/live-0"
+
 MOUNTPOINT="/mnt/$GUEST_NAME"
 MOUNT_OPTS=""
 
@@ -409,6 +411,11 @@ install_os() {
   fi
 }
 
+create_qcow2() {
+  try_run "Creating copy-on-write live disk" \
+    qemu-img create -b $ROOT -f qcow2 $QCOW2
+}
+
 generate_macaddr() {
   # generate a random mac address for the qemu nic
   # By pheldens on qemu forum
@@ -418,7 +425,7 @@ generate_macaddr() {
             done)
 
   try_run "Generated MAC address $MACADDR" \
-    echo $MACADDR > $ROOT.macaddr
+    echo $MACADDR > $QCOW2.macaddr
 }
 
 ############################################################
@@ -428,6 +435,8 @@ generate_macaddr() {
 init_filesystems
 install_kernel
 install_os
+
+create_qcow2
 generate_macaddr
 
 # From this point, the filesystem and config are all set up
@@ -436,7 +445,7 @@ do_cleanup=0
 if test "$distro_installed" -eq 1 ; then
   if test "$do_create" -eq 1 ; then
     try_run "Starting kvm" \
-      kvm $ROOT -net nic,macaddr=$MACADDR -net tap
+      kvm $QCOW2 -net nic,macaddr=$MACADDR -net tap
   fi
 fi
 
