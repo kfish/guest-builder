@@ -358,18 +358,21 @@ install_kernel() {
   if test "x$DRYRUN" = "x" ; then
     cat > $MOUNTPOINT/boot/grub/menu.lst << EOF
 
+default 0
+timeout 3
+
 hiddenmenu
 
 title           Linux kernel $KERNEL_VERSION
 root            (hd0,0)
-kernel          /vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro quiet splash
-initrd          /initrd.img-$KERNEL_VERSION
+kernel          /boot/vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro
+initrd          /boot/initrd.img-$KERNEL_VERSION
 quiet
 
 title           Linux kernel $KERNEL_VERSION (recovery mode)
 root            (hd0,0)
-kernel          /vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro single
-initrd          /initrd.img-$KERNEL_VERSION
+kernel          /boot/vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro single
+initrd          /boot/initrd.img-$KERNEL_VERSION
 quiet
 
 EOF
@@ -392,6 +395,19 @@ install_os() {
       exit 1
     fi
   fi
+}
+
+install_grub() {
+  try_run "Unmounting disk" \
+    grep -q $MOUNTPOINT && umount $MOUNTPOINT
+
+  try_run "Installing grub to disk bootsector" \
+    grub --device-map=/dev/null << EOF
+device (hd0) $ROOT
+root (hd0,0)
+setup (hd0)
+EOF
+
 }
 
 create_qcow2() {
@@ -418,6 +434,7 @@ generate_macaddr() {
 init_filesystems
 install_kernel
 install_os
+install_grub
 
 create_qcow2
 generate_macaddr

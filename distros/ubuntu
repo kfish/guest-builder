@@ -34,7 +34,7 @@ EOF
 
   try_run "Initializing Ubuntu guest filesystem" \
     "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
-      chroot $MOUNTPOINT /sbin/initU-debian $DOMNAME)"
+      chroot $MOUNTPOINT /sbin/initU-debian $GUEST_NAME)"
 
   try_run "Unmounting $MOUNTPOINT" \
     umount $MOUNTPOINT
