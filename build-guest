@@ -240,24 +240,24 @@ fi
 ## Setup
 ############################################################
 
-DOMNAME=$1
+GUEST_NAME=$1
 
-DOMPATH="$IMGDIR/$DOMNAME"
+GUEST_PATH="$IMGDIR/$GUEST_NAME"
 
 if test "x$ROOT" == "x" ; then
-  ROOT="$DOMPATH/disk"
+  ROOT="$GUEST_PATH/disk"
 fi
-ROOT_LABEL="$DOMNAME-root"
+ROOT_LABEL="$GUEST_NAME-root"
 
 #if test "x$SWAP" == "x" ; then
-#  SWAP="$DOMPATH/swap"
+#  SWAP="$GUEST_PATH/swap"
 #fi
-#SWAP_LABEL="$DOMNAME-swap"
+#SWAP_LABEL="$GUEST_NAME-swap"
 
-MOUNTPOINT="/mnt/$DOMNAME"
+MOUNTPOINT="/mnt/$GUEST_NAME"
 MOUNT_OPTS=""
 
-#CONF="$CONFDIR/$DOMNAME.conf"
+#CONF="$CONFDIR/$GUEST_NAME.conf"
 #
 #VMLINUZ="/boot/vmlinuz-$KERNEL"
 
@@ -273,7 +273,7 @@ do_cleanup=1
 
 cleanup () {
   if test "$do_cleanup" -eq 1 ; then
-    try_run "Removing filesystems" rm -rf $DOMPATH
+    try_run "Removing filesystems" rm -rf $GUEST_PATH
     (mount|grep -q $MOUNTPOINT && umount $MOUNTPOINT) || \
      losetup -s $LOOP && losetup -d $LOOP
     #try_run "Removing $CONF" rm -f $CONF
@@ -310,8 +310,8 @@ done
 
 init_filesystems() {
 
-  if [ -e $DOMPATH ] ; then
-    echo "$DOMPATH already exists, exiting ..."
+  if [ -e $GUEST_PATH ] ; then
+    echo "$GUEST_PATH already exists, exiting ..."
     do_cleanup=0
     exit 1
   fi
@@ -427,6 +427,18 @@ install_os() {
   fi
 }
 
+generate_macaddr() {
+  # generate a random mac address for the qemu nic
+  # By pheldens on qemu forum
+  MACADDR=$(echo -n DE:AD:BE:EF ; \
+            for i in `seq 1 2` ; do \
+              echo -n $(echo ":$RANDOM$RANDOM" | cut -n -c -3) ; \
+            done)
+
+  try_run "Generated MAC address $MACADDR" \
+    echo $MACADDR > $ROOT.macaddr
+}
+
 ############################################################
 ## Main
 ############################################################
@@ -434,6 +446,7 @@ install_os() {
 init_filesystems
 install_kernel
 install_os
+generate_macaddr
 
 # From this point, the filesystem and config are all set up
 do_cleanup=0
@@ -441,7 +454,7 @@ do_cleanup=0
 if test "$distro_installed" -eq 1 ; then
   if test "$do_create" -eq 1 ; then
     try_run "Starting kvm" \
-      kvm $ROOT
+      kvm $ROOT -net nic,macaddr=$MACADDR -net tap,script=/etc/qemu-ifup
   fi
 fi
 
