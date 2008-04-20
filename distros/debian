@@ -2,7 +2,10 @@
 # A local debian mirror
 DEBIAN_MIRROR="http://ftp.jp.debian.org/debian"
 
-DEBRELEASE="etch"
+# Default Debian release to install
+# (lenny, etch, sarge, woody, potato, slink, hamm)
+# See http://www.debian.org/releases/
+DEFAULT_DEBRELEASE="etch"
 
 #ARCH="i386"
 ARCH="amd64"
@@ -14,7 +17,9 @@ ARCH="amd64"
 DISTROS_AVAILABLE="$DISTROS_AVAILABLE debian"
 
 init_debian() {
-  verbose_echo Initializing Debian ...
+  DEBRELEASE=${RELEASE:-$DEFAULT_DEBRELEASE}
+
+  verbose_echo Initializing Debian $DEBRELEASE ...
 
   if test "x$VERBOSE" != "x"; then
     DSTRAP_OPTS="--verbose"
@@ -22,14 +27,17 @@ init_debian() {
   try_run "Installing Debian base system from $DEBIAN_MIRROR" \
     debootstrap $DSTRAP_OPTS --arch $ARCH $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
 
-#  try_run "Copying kernel modules into root filesystem" \
-#    "(mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
-#      cp -a /lib/modules/$KERNEL $MOUNTPOINT/lib/modules/)"
-
   try_run "Initializing Debian guest filesystem" \
     "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
-      cat initU.d/debian-common >> $MOUNTPOINT/sbin/initU-debian &&
       chroot $MOUNTPOINT /sbin/initU-debian -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+
+  if test "x$DRY_RUN" = "x" ; then
+    cat > /etc/apt/sources.list << EOF
+deb $DEBMIRROR $DEBRELEASE main
+deb-src $DEBMIRROR $DEBRELEASE main
+deb ftp://security.debian.org/debian-security $DEBRELEASE/updates main
+EOF
+  fi
 
   try_run "Unmounting $MOUNTPOINT" \
     umount $MOUNTPOINT

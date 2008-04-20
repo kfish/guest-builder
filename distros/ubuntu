@@ -2,7 +2,7 @@
 # A local debian mirror
 UBUNTU_MIRROR="http://jp.archive.ubuntu.com/ubuntu"
 
-DEFAULT_RELEASE="hardy"
+DEFAULT_UBUNTU_RELEASE="hardy"
 
 #ARCH="i386"
 ARCH="amd64"
@@ -14,33 +14,27 @@ ARCH="amd64"
 DISTROS_AVAILABLE="$DISTROS_AVAILABLE ubuntu"
 
 init_ubuntu() {
-  REL=${RELEASE:-$DEFAULT_RELEASE}
+  UBUREL=${RELEASE:-$DEFAULT_UBUNTU_RELEASE}
 
-  verbose_echo Initializing Ubuntu $REL ...
+  verbose_echo Initializing Ubuntu $UBUREL ...
 
   if test "x$VERBOSE" != "x"; then
     DSTRAP_OPTS="--verbose"
   fi
   try_run "Installing Ubuntu base system from $UBUNTU_MIRROR" \
-    debootstrap $DSTRAP_OPTS --arch $ARCH $REL $MOUNTPOINT $UBUNTU_MIRROR
-
-  # This is handled by toplevel install_kernel
-  #try_run "Copying kernel modules into root filesystem" \
-  #  "(mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
-  #    cp -a /lib/modules/$KERNEL $MOUNTPOINT/lib/modules/)"
+    debootstrap $DSTRAP_OPTS --arch $ARCH $UBUREL $MOUNTPOINT $UBUNTU_MIRROR
 
   if test "x$DRYRUN" = "x" ; then
     cat > $MOUNTPOINT/etc/apt/sources.list << EOF
-deb $UBUNTU_MIRROR $REL main
-deb-src $UBUNTU_MIRROR $REL main
-deb http://security.ubuntu.com/ubuntu $REL-security main
+deb $UBUNTU_MIRROR $UBUREL main
+deb-src $UBUNTU_MIRROR $UBUREL main
+deb http://security.ubuntu.com/ubuntu $UBUREL-security main
 EOF
   fi
 
   try_run "Initializing Ubuntu guest filesystem" \
-    "(cp initU.d/initU-ubuntu $MOUNTPOINT/sbin && \
-      cat initU.d/debian-common >> $MOUNTPOINT/sbin/initU-ubuntu &&
-      chroot $MOUNTPOINT /sbin/initU-ubuntu -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+    "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
+      chroot $MOUNTPOINT /sbin/initU-debian -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
 
   try_run "Unmounting $MOUNTPOINT" \
     umount $MOUNTPOINT
