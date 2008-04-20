@@ -1,0 +1,36 @@
+
+# A local debian mirror
+DEBIAN_MIRROR="http://ftp.jp.debian.org/debian"
+
+DEBRELEASE="etch"
+
+#ARCH="i386"
+ARCH="amd64"
+
+############################################################
+## No configurable variables past this point              ##
+############################################################
+
+DISTROS_AVAILABLE="$DISTROS_AVAILABLE debian"
+
+init_debian() {
+  verbose_echo Initializing Debian ...
+
+  if test "x$VERBOSE" != "x"; then
+    DSTRAP_OPTS="--verbose"
+  fi
+  try_run "Installing Debian base system from $DEBIAN_MIRROR" \
+    debootstrap $DSTRAP_OPTS --arch $ARCH $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
+
+#  try_run "Copying kernel modules into root filesystem" \
+#    "(mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
+#      cp -a /lib/modules/$KERNEL $MOUNTPOINT/lib/modules/)"
+
+  try_run "Initializing Debian guest filesystem" \
+    "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
+      cat initU.d/debian-common >> $MOUNTPOINT/sbin/initU-debian &&
+      chroot $MOUNTPOINT /sbin/initU-debian -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+
+  try_run "Unmounting $MOUNTPOINT" \
+    umount $MOUNTPOINT
+}

@@ -1,0 +1,63 @@
+
+# A local gentoo mirror
+#GENTOO_MIRROR="ftp://ftp.planetmirror.com/pub/gentoo"
+GENTOO_MIRROR="http://ftp.jaist.ac.jp/pub/Linux/Gentoo"
+
+# Release version
+#GENTOO_RELEASE="current"
+GENTOO_RELEASE="2008.0_beta1"
+
+# Architecture to install
+# NB. release and stage3 arch specifiers for x86 are "x86" and "i686"
+#RELEASE_ARCH=x86
+#STAGE3_ARCH=i686
+
+RELEASE_ARCH=amd64
+STAGE3_ARCH=amd64
+
+############################################################
+## No configurable variables past this point              ##
+############################################################
+
+DISTROS_AVAILABLE="$DISTROS_AVAILABLE gentoo"
+
+init_gentoo() {
+  verbose_echo Initializing Gentoo ...
+
+  STAGE3_TARBALL="stage3-${STAGE3_ARCH}-${GENTOO_RELEASE}.tar.bz2"
+
+  STAGE3_URL_DIR="$GENTOO_MIRROR/releases/$RELEASE_ARCH/$GENTOO_RELEASE/"
+  if test "x$GENTOO_RELEASE" = "x2007.0" ; then
+    STAGE3_URL="$STAGE3_URL_DIR/stages/$STAGE3_TARBALL"
+  else
+    STAGE3_URL="$STAGE3_URL_DIR/$STAGE3_TARBALL"
+  fi
+
+  PORTAGE_TARBALL="portage-latest.tar.bz2"
+  PORTAGE_URL="$GENTOO_MIRROR/snapshots/$PORTAGE_TARBALL"
+
+  TAR_OPTS="jxf"
+
+  if test "x$VERBOSE" = "xyes" ; then
+    TAR_OPTS="v$TAR_OPTS"
+  fi
+
+  try_run "Installing Gentoo stage3 tarball from $GENTOO_MIRROR" \
+    "(( [ -e $STAGE3_TARBALL ] || wget $STAGE3_URL) && \
+      tar $TAR_OPTS $STAGE3_TARBALL -C $MOUNTPOINT)"
+
+  try_run "Installing Gentoo portage tree from $GENTOO_MIRROR" \
+    "(( [ -e $PORTAGE_TARBALL ] || wget $PORTAGE_URL) && \
+      tar $TAR_OPTS $PORTAGE_TARBALL -C $MOUNTPOINT/usr)"
+
+#  try_run "Copying kernel modules into root filesystem" \
+#    mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
+#    cp -a /lib/modules/$KERNEL $MOUNTPOINT/lib/modules/
+
+  try_run "Initializing Gentoo guest" \
+    "(cp initU.d/initU-gentoo $MOUNTPOINT/sbin && \
+      chroot $MOUNTPOINT /sbin/initU-gentoo -I $IP -N $NETMASK -G $GATEWAY -D $NAMESERVER $DOMNAME)"
+
+  try_run "Unmounting $MOUNTPOINT" \
+    umount $MOUNTPOINT
+}

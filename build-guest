@@ -1,0 +1,467 @@
+#!/bin/bash
+
+# Build a guest filesystem image
+
+# Script name
+THIS="build-guest"
+
+# Where to store disk and swap images
+IMGDIR="$HOME/var/virt"
+
+# Location of GRUB files
+GRUB_ORIG="/usr/lib/grub/x86_64-pc"
+
+# Default distro to install
+DISTRO="debian"
+
+# Default release to install (blank for per-distro default)
+RELEASE=""
+
+# Default IP address
+IP="10.1.0.100"
+
+# Default netmask
+NETMASK="255.255.0.0"
+
+# Default gateway
+GATEWAY="10.0.0.1"
+
+# Default nameserver
+NAMESERVER="10.0.0.1"
+
+# Loop device
+LOOP=$(losetup -f)
+
+# Root of location of stock kernels and kernel modules
+# Kernel image is looked for in $KERNEL_DIR/boot and
+# modules in $KERNEL_DIR/lib/modules
+
+# Use the running system kernel
+#KERNEL_DIR=""
+
+# Specify a location of working kernel
+KERNEL_DIR="/var/lib/guest-builder"
+
+# Use the running kernel version
+#KERNEL_VERSION=`uname -r`
+
+# Specify a kernel
+KERNEL_VERSION="2.6.18-6-amd64"
+
+############################################################
+## No configurable variables past this point              ##
+############################################################
+
+VERBOSE=""
+DRYRUN=""
+
+XM_ARGS=""
+
+version () {
+  echo >&2 "$THIS version "1
+  exit 1
+}
+
+usage () {
+  echo >&2 "$THIS, build a guest filesystem"
+  echo >&2
+  echo >&2 "Usage: $THIS [options] hostname"
+  echo >&2
+  echo >&2 "General options"
+  echo >&2 "  -n, --dry-run               Don't actually run any commands; just print them."
+  echo >&2
+  echo >&2 "Installation options"
+  echo >&2 "  -d DISTRO, --distro DISTRO  Install DISTRO (default: debian)"
+  echo >&2 "  -l RELEASE_NAME, --release RELEASE_NAME"
+  echo >&2 "                              Specify name of release to install"
+  echo >&2 "  -r root, --root root        Specify root device or filename"
+  echo >&2 "  -R size, --root-size size   Set the root filesystem size (GB)"
+  echo >&2 "  -s swap, --swap swap        Specify swap device or filename"
+  echo >&2 "  -S size, --swap-size size   Set the swap size (MB)"
+  echo >&2
+  echo >&2 "Xen options"
+  echo >&2 "  -c, --console               Create a running instance of the domain, and"
+  echo >&2 "                              attach to its console"
+  echo >&2 "  --create                    Create a running instance of the domain"
+  echo >&2
+  echo >&2 "Networking options"
+  echo >&2 "  -I, --ip address            Set the IP address"
+  echo >&2 "  -N, --netmask address       Set the netmask"
+  echo >&2 "  -G, --gateway address       Set the gateway"
+  echo >&2 "  -D, --nameserver address    Set the DNS nameserver address"
+  echo >&2
+  echo >&2 "Removal options"
+  echo >&2 "  -p, --purge                 Purge the filesystems and config for DomName"
+  echo >&2
+  echo >&2 "Miscellaneous options"
+  echo >&2 "  -h, --help                  Display this help and exit"
+  echo >&2 "  -v, --verbose               Print informative messages"
+  echo >&2 "  --version                   Output version information and exit"
+  echo >&2
+  exit 1
+}
+
+############################################################
+## General functions
+############################################################
+
+verbose_echo () {
+  if test "x$VERBOSE" != "x"; then
+    echo $*
+  fi
+}
+
+#
+# try_run desc cmd
+#
+try_run () {
+  desc=$1
+  shift
+
+  verbose_echo ==========================================================================
+  verbose_echo $desc ...
+
+  if test "x$DRYRUN" != "x" || test "x$VERBOSE" != "x"; then
+    echo $*
+  fi
+  if test "x$DRYRUN" = "x" ; then
+    eval $*
+    if test "$?" != "0"; then
+      echo "$THIS: Failed command:"
+      echo $*
+      exit 1
+    fi
+  fi
+}
+
+############################################################
+## BEGIN: Parse options
+############################################################
+
+do_purge=0
+do_create=0
+do_auto=0
+distro_installed=0
+
+ROOT=""
+ROOT_XTYPE="file"
+ROOT_SIZE="2" # GiB
+SWAP=""
+SWAP_XTYPE="file"
+SWAP_SIZE="128" # MiB
+
+GETOPTEST=`getopt --version`
+SHORTOPTS="nhvd:l:r:R:s:S:caI:N:G:D:p"
+
+case $GETOPTEST in
+getopt*) # GNU getopt
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: -l swap:: -l swap-size:: -l console -l create -l auto -l ip:: -l netmask:: -l gateway:: -l nameserver:: -l purge -- +$SHORTOPTS $@`
+  ;;
+*) # POSIX getopt ?
+  TEMP=`getopt $SHORTOPTS $@`
+  ;;
+esac
+
+if test "$?" != "0"; then
+  usage
+fi
+
+eval set -- "$TEMP"
+
+while test "X$1" != "X--"; do
+  case "$1" in
+    -n|--dry-run)
+      DRYRUN="y"
+      ;;
+    -v|verbose)
+      VERBOSE="y"
+      ;;
+    --version)
+      version
+      ;;
+    -h|--help)
+      usage
+      ;;
+
+    -d|--distro)
+      shift
+      DISTRO=$1
+      ;;
+    -l|--release)
+      shift
+      RELEASE=$1
+      ;;
+
+    -r|--root)
+      shift
+      ROOT=$1
+      ;;
+    -s|--swap)
+      shift
+      SWAP=$1
+      ;;
+    -R|--root-size)
+      shift
+      ROOT_SIZE=$1
+      ;;
+    -S|--swap-size)
+      shift
+      SWAP_SIZE=$1
+      ;;
+
+    -c|--console)
+      do_create=1
+      XM_ARGS="$XM_ARGS -c"
+      ;;
+    --create)
+      do_create=1
+      ;;
+    -a|--auto)
+      do_auto=1
+      ;;
+
+    -I|--ip)
+      shift
+      IP=$1
+      ;;
+    -N|--netmask)
+      shift
+      NETMASK=$1
+      ;;
+    -G|--gateway)
+      shift
+      GATEWAY=$1
+      ;;
+    -D|--nameserver)
+      shift
+      NAMESERVER=$1
+      ;;
+
+    -p|--purge)
+      do_purge=1
+      ;;
+  esac
+  shift
+done
+
+# Check that all options parsed ok
+if test "x$1" != "x--"; then
+  usage
+fi
+shift #get rid of the '--'
+
+if test "x$1" = "x"; then
+  usage
+fi
+
+############################################################
+## Setup
+############################################################
+
+DOMNAME=$1
+
+DOMPATH="$IMGDIR/$DOMNAME"
+
+if test "x$ROOT" == "x" ; then
+  ROOT="$DOMPATH/disk"
+fi
+ROOT_LABEL="$DOMNAME-root"
+
+#if test "x$SWAP" == "x" ; then
+#  SWAP="$DOMPATH/swap"
+#fi
+#SWAP_LABEL="$DOMNAME-swap"
+
+MOUNTPOINT="/mnt/$DOMNAME"
+MOUNT_OPTS=""
+
+#CONF="$CONFDIR/$DOMNAME.conf"
+#
+#VMLINUZ="/boot/vmlinuz-$KERNEL"
+
+############################################################
+## Cleanup functions
+############################################################
+
+# exit status
+stat=1
+
+# clean up built files on error
+do_cleanup=1
+
+cleanup () {
+  if test "$do_cleanup" -eq 1 ; then
+    try_run "Removing filesystems" rm -rf $DOMPATH
+    (mount|grep -q $MOUNTPOINT && umount $MOUNTPOINT) || \
+     losetup -s $LOOP && losetup -d $LOOP
+    #try_run "Removing $CONF" rm -f $CONF
+    echo wheee
+  fi
+  [ -d $MOUNTPOINT ] && try_run "Removing mountpoint" rmdir $MOUNTPOINT
+
+  exit $stat
+}
+
+trap cleanup 0
+trap 'echo $THIS: Interrupted, cleaning up ...' INT QUIT KILL
+
+############################################################
+##  Purge (handle --purge)
+############################################################
+
+if test $do_purge -eq 1 ; then
+  exit 0
+fi
+
+############################################################
+## Distros
+############################################################
+
+DISTROS_AVAILABLE=""
+for s in ./distros/*; do
+  source $s
+done
+
+############################################################
+## Actions
+############################################################
+
+init_filesystems() {
+
+  if [ -e $DOMPATH ] ; then
+    echo "$DOMPATH already exists, exiting ..."
+    do_cleanup=0
+    exit 1
+  fi
+
+  if [ -e $MOUNTPOINT ] ; then
+    echo "Mount point $MOUNTPOINT already exists, exiting ..."
+    do_cleanup=0
+    exit 1
+  fi
+
+  if test -b $ROOT ; then
+    try_run "Initializing root filesystem" \
+      mkfs.ext3 -L $ROOT_LABEL $ROOT
+    ROOT_XTYPE="phy"
+  else
+    ROOT_DIR=`dirname $ROOT`
+
+    try_run "Copying bootloaders for root filesystem" \
+      "(mkdir -p $ROOT_DIR && \
+        dd if=$GRUB_ORIG/stage1 of=$ROOT bs=512 count=1 && \
+        dd if=$GRUB_ORIG/stage2 of=$ROOT bs=512 seek=1)"
+
+    try_run "Creating sparse disk file for root filesystem" \
+        "dd if=/dev/zero of=$ROOT bs=1K count=1 seek=${ROOT_SIZE}M"
+
+    try_run "Attaching disk file to loopback device" \
+      "losetup $LOOP $ROOT"
+
+    # Ensure OFFSET is larger than the sum of the sizes of
+    # GRUB stage1 and stage2
+    # OFFSET=128000
+    OFFSET=$(S=0 ; \
+             for i in $(ls -s1 --block-size=1 $GRUB_ORIG/stage[12] | \
+                        awk '{print $1}'); \
+               do S=$(($S + $i)); \
+             done; \
+             Q=32000 ; \
+             echo $(( (($S + $Q)/$Q) * $Q )) \
+            )
+
+    # parted returns 1 on success for the last two steps, so we
+    # fake the final exit value
+    try_run "Partitioning disk image" \
+      "parted -s $LOOP mklabel msdos; \
+       parted -s $LOOP -- mkpartfs primary ext2 ${OFFSET}B -1s; \
+       parted -s $LOOP set 1 boot on; true"
+
+    try_run "Detaching disk file from loopback device" \
+      "losetup -d $LOOP"
+
+    #try_run "Making ext3 filesystem" \
+    #  "yes | mkfs.ext3 -L $ROOT_LABEL $ROOT"
+
+    MOUNT_OPTS="-o loop,offset=$OFFSET"
+  fi
+
+  try_run "Mounting $ROOT at $MOUNTPOINT" \
+    "(mkdir $MOUNTPOINT && mount $MOUNT_OPTS $ROOT $MOUNTPOINT)"
+
+}
+
+install_kernel() {
+
+  try_run "Copying the kernel's image files to $MOUNTPOINT/boot" \
+    "(mkdir -p $MOUNTPOINT/boot && \
+      cp $KERNEL_DIR/boot/*${KERNEL_VERSION}* $MOUNTPOINT/boot)"
+
+  try_run "Copying kernel modules to $MOUNTPOINT/lib/modules" \
+    "(mkdir -p $MOUNTPOINT/lib/modules && \
+      cp -a $KERNEL_DIR/lib/modules/$KERNEL_VERSION $MOUNTPOINT/lib/modules)"
+
+  # Configure menu.lst
+  GRUB_TARGET="$MOUNTPOINT/boot/grub"
+  try_run "Copying GRUB bootfiles" \
+    "(mkdir -p $GRUB_TARGET && cp $GRUB_ORIG/* $GRUB_TARGET)"
+
+  if test "x$DRYRUN" = "x" ; then
+    cat > $MOUNTPOINT/boot/grub/menu.lst << EOF
+
+hiddenmenu
+
+title           Linux kernel $KERNEL_VERSION
+root            (hd0,0)
+kernel          /vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro quiet splash
+initrd          /initrd.img-$KERNEL_VERSION
+quiet
+
+title           Linux kernel $KERNEL_VERSION (recovery mode)
+root            (hd0,0)
+kernel          /vmlinuz-$KERNEL_VERSION root=/dev/hda1 ro single
+initrd          /initrd.img-$KERNEL_VERSION
+quiet
+
+EOF
+  fi
+
+}
+
+install_os() {
+  if test "x$DISTRO" != "xnone" ; then
+    for d in $DISTROS_AVAILABLE ; do
+      if test "x$DISTRO" = "x$d" ; then
+        echo >&2 Installing $DISTRO ...
+        eval init_$d $RELEASE
+        distro_installed=1
+      fi
+    done
+    if test "$distro_installed" -eq 0 ; then
+      echo >&2 Installation of $DISTRO failed
+      echo >&2 Available distributions: $DISTROS_AVAILABLE
+      exit 1
+    fi
+  fi
+}
+
+############################################################
+## Main
+############################################################
+
+init_filesystems
+install_kernel
+install_os
+
+# From this point, the filesystem and config are all set up
+do_cleanup=0
+
+if test "$distro_installed" -eq 1 ; then
+  if test "$do_create" -eq 1 ; then
+    try_run "Starting kvm" \
+      kvm $ROOT
+  fi
+fi
+
+# Set exit status to 0
+stat=0

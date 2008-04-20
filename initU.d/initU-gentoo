@@ -1,0 +1,204 @@
+#!/bin/sh
+
+# Script name
+THIS="initU-gentoo"
+
+# A local gentoo mirror
+GENTOO_MIRROR="ftp://ftp.planetmirror.com/pub/gentoo"
+
+# A local gentoo rsync mirror
+GENTOO_RSYNC=""
+
+# Default IP address
+#IP="10.1.0.100"
+IP="10.0.1.3"
+
+# Default netmask
+NETMASK="255.255.0.0"
+
+# Default gateway
+GATEWAY="10.0.0.1"
+
+# Default nameserver
+NAMESERVER="192.168.1.1"
+
+############################################################
+## No configurable variables past this point              ##
+############################################################
+
+if [ ! -e /sbin/$THIS ] ; then
+  echo "This doesn't look like a guest filesystem!"
+  exit 1
+fi
+
+VERBOSE=""
+DRYRUN=""
+
+version () {
+  echo >&2 "$THIS version "1
+  exit 1
+}
+
+usage () {
+  echo >&2 "$THIS, initialize a Gentoo guest filesystem"
+  echo >&2
+  echo >&2 "Usage: $THIS [options] hostname"
+  echo >&2
+  echo >&2 "General options"
+  echo >&2 "  -n, --dry-run               Don't actually run any commands; just print them."
+  echo >&2
+  echo >&2 "Networking options"
+  echo >&2 "  -I, --ip address            Set the IP address"
+  echo >&2 "  -N, --netmask address       Set the netmask"
+  echo >&2 "  -G, --gateway address       Set the gateway"
+  echo >&2 "  -D, --nameserver address    Set the DNS nameserver address"
+  echo >&2
+  echo >&2 "Miscellaneous options"
+  echo >&2 "  -h, --help                  Display this help and exit"
+  echo >&2 "  -v, --verbose               Print informative messages"
+  echo >&2 "  --version                   Output version information and exit"
+  echo >&2
+  exit 1
+}
+
+############################################################
+## General functions
+############################################################
+
+verbose_echo () {
+  if test "x$VERBOSE" != "x"; then
+    echo $*
+  fi
+}
+
+#
+# try_run desc cmd
+#
+try_run () {
+  desc=$1
+  shift
+   verbose_echo ==========================================================================
+  verbose_echo $desc ...
+
+  if test "x$DRYRUN" != "x" || test "x$VERBOSE" != "x"; then
+    echo $*
+  fi
+  if test "x$DRYRUN" = "x" ; then
+    eval $*
+    if test "$?" != "0"; then
+      echo "$THIS: Failed command:"
+      echo $*
+      exit 1
+    fi
+  fi
+}
+
+############################################################
+## BEGIN: Parse options
+############################################################
+
+GETOPTEST=`getopt --version`
+SHORTOPTS="nhvI:N:G:D:"
+
+case $GETOPTEST in
+getopt*) # GNU getopt
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l ip:: -l netmask:: -l gateway:: -l nameserver:: -- +$SHORTOPTS $@`
+  ;;
+*) # POSIX getopt ?
+  TEMP=`getopt $SHORTOPTS $@`
+  ;;
+esac
+
+if test "$?" != "0"; then
+  usage
+fi
+
+eval set -- "$TEMP"
+
+while test "X$1" != "X--"; do
+  case "$1" in
+    -n|--dry-run)
+      DRYRUN="y"
+      ;;
+    -v|verbose)
+      VERBOSE="y"
+      ;;
+    --version)
+      version
+      ;;
+    -h|--help)
+      usage
+      ;;
+
+    -I|--ip)
+      shift
+      IP=$1
+      ;;
+    -N|--netmask)
+      shift
+      NETMASK=$1
+      ;;
+    -G|--gateway)
+      shift
+      GATEWAY=$1
+      ;;
+    -D|--nameserver)
+      shift
+      NAMESERVER=$1
+      ;;
+  esac
+  shift
+done
+
+# Check that all options parsed ok
+if test "x$1" != "x--"; then
+  usage
+fi
+shift #get rid of the '--'
+
+if test "x$1" = "x"; then
+  usage
+fi
+
+############################################################
+## Setup
+############################################################
+
+GUEST_NAME=$1
+
+cat > /etc/conf.d/hostname << EOF
+# /etc/conf.d/hostname
+
+# Set to the hostname of this machine
+HOSTNAME="$GUEST_NAME"
+EOF
+
+cat > /etc/fstab << EOF
+/dev/hda1	/	ext3	errors=remount-ro	0	1
+#proc		/proc	proc	defaults		0	0
+EOF
+
+cat > /etc/conf.d/net << EOF
+config_eth0=( "$IP netmask $NETMASK" )
+routes_eth0=( "default gw $GATEWAY" )
+EOF
+
+cat > /etc/resolv.conf << EOF
+nameserver $NAMESERVER
+EOF
+
+rc-update add net.eth0 default
+
+if test "x$GENTOO_RSYNC" != "x" ; then
+  cat >> /etc/make.conf << EOF
+SYNC="$GENTOO_RSYNC"
+EOF
+fi
+
+#emerge --sync
+
+# Allow root to log in
+#emerge ed
+#echo -e ",s/root:\*:/root::/g\\nw"|ed /etc/shadow
+
+#emerge syslog-ng vixie-cron
