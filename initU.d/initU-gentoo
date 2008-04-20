@@ -134,6 +134,9 @@ cat > /etc/conf.d/hostname << EOF
 HOSTNAME="$GUEST_NAME"
 EOF
 
+# Activate eth0 at boot
+rc-update add net.eth0 default
+
 cat > /etc/fstab << EOF
 /dev/hda1	/	ext3	errors=remount-ro	0	1
 proc		/proc	proc	defaults		0	0
