@@ -7,14 +7,6 @@ GENTOO_MIRROR="http://ftp.jaist.ac.jp/pub/Linux/Gentoo"
 #GENTOO_RELEASE="current"
 GENTOO_RELEASE="2008.0_beta1"
 
-# Architecture to install
-# NB. release and stage3 arch specifiers for x86 are "x86" and "i686"
-#RELEASE_ARCH=x86
-#STAGE3_ARCH=i686
-
-RELEASE_ARCH=amd64
-STAGE3_ARCH=amd64
-
 ############################################################
 ## No configurable variables past this point              ##
 ############################################################
@@ -25,6 +17,18 @@ GENTOO_CACHE="$CACHE/gentoo"
 
 init_gentoo() {
   verbose_echo Initializing Gentoo ...
+
+  # NB. release and stage3 arch specifiers for x86 are "x86" and "i686"
+  case "$TARGET_ARCH" in
+    *86)
+      RELEASE_ARCH=x86
+      STAGE3_ARCH=i686
+      ;;
+    *)
+      RELEASE_ARCH=$TARGET_ARCH
+      STAGE3_ARCH=$TARGET_ARCH
+      ;;
+  esac
 
   STAGE3_TARBALL="stage3-${STAGE3_ARCH}-${GENTOO_RELEASE}.tar.bz2"
 
@@ -59,10 +63,6 @@ init_gentoo() {
 
   # Return to the original working directory
   cd $SAVED_PWD
-
-#  try_run "Copying kernel modules into root filesystem" \
-#    mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
-#    cp -a /lib/modules/$KERNEL $MOUNTPOINT/lib/modules/
 
   try_run "Initializing Gentoo guest" \
     "(cp initU.d/initU-gentoo $MOUNTPOINT/sbin && \

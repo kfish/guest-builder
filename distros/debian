@@ -7,9 +7,6 @@ DEBIAN_MIRROR="http://ftp.jp.debian.org/debian"
 # See http://www.debian.org/releases/
 DEFAULT_DEBRELEASE="etch"
 
-#ARCH="i386"
-ARCH="amd64"
-
 ############################################################
 ## No configurable variables past this point              ##
 ############################################################
@@ -25,20 +22,17 @@ init_debian() {
     DSTRAP_OPTS="--verbose"
   fi
   try_run "Installing Debian base system from $DEBIAN_MIRROR" \
-    debootstrap $DSTRAP_OPTS --arch $ARCH $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
+    debootstrap $DSTRAP_OPTS --arch $TARGET_ARCH $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
 
   try_run "Initializing Debian guest filesystem" \
     "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
       chroot $MOUNTPOINT /sbin/initU-debian $GUEST_NAME)"
 
   if test "x$DRY_RUN" = "x" ; then
-    cat > /etc/apt/sources.list << EOF
+    cat > $MOUNTPOINT/etc/apt/sources.list << EOF
 deb $DEBMIRROR $DEBRELEASE main
 deb-src $DEBMIRROR $DEBRELEASE main
 deb ftp://security.debian.org/debian-security $DEBRELEASE/updates main
 EOF
   fi
-
-  try_run "Unmounting $MOUNTPOINT" \
-    umount $MOUNTPOINT
 }

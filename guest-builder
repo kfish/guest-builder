@@ -23,6 +23,9 @@ RELEASE=""
 # Loop device
 LOOP=$(losetup -f)
 
+# Target architecture
+TARGET_ARCH=amd64
+
 # Root of location of stock kernels and kernel modules
 # Kernel image is looked for in $KERNEL_DIR/boot and
 # modules in $KERNEL_DIR/lib/modules
@@ -31,13 +34,13 @@ LOOP=$(losetup -f)
 #KERNEL_DIR=""
 
 # Specify a location of working kernel
-KERNEL_DIR="/var/lib/guest-builder"
+KERNEL_DIR="/var/lib/guest-builder/$TARGET_ARCH"
 
 # Use the running kernel version
 #KERNEL_VERSION=`uname -r`
 
 # Specify a kernel
-KERNEL_VERSION="2.6.18-6-amd64"
+KERNEL_VERSION="2.6.18-6-$TARGET_ARCH"
 
 ############################################################
 ## No configurable variables past this point              ##
@@ -64,6 +67,7 @@ usage () {
   echo >&2 "  -n, --dry-run               Don't actually run any commands; just print them."
   echo >&2
   echo >&2 "Installation options"
+  echo >&2 "  -a ARCH, --arch ARCH        Specify target architecture"
   echo >&2 "  -d DISTRO, --distro DISTRO  Install DISTRO (default: debian)"
   echo >&2 "  -l RELEASE_NAME, --release RELEASE_NAME"
   echo >&2 "                              Specify name of release to install"
@@ -134,11 +138,11 @@ ROOT_XTYPE="file"
 ROOT_SIZE="2" # GiB
 
 GETOPTEST=`getopt --version`
-SHORTOPTS="nhvd:l:r:R:s:S:cap"
+SHORTOPTS="nhva:d:l:r:R:s:S:cap"
 
 case $GETOPTEST in
 getopt*) # GNU getopt
-  TEMP=`getopt -l dry-run -l verbose -l version -l help -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l arch:: -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
   ;;
 *) # POSIX getopt ?
   TEMP=`getopt $SHORTOPTS $@`
@@ -166,6 +170,10 @@ while test "X$1" != "X--"; do
       usage
       ;;
 
+    -a|--arch)
+      shift
+      TARGET_ARCH=$1
+      ;;
     -d|--distro)
       shift
       DISTRO=$1
