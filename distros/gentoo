@@ -29,28 +29,36 @@ init_gentoo() {
   STAGE3_TARBALL="stage3-${STAGE3_ARCH}-${GENTOO_RELEASE}.tar.bz2"
 
   STAGE3_URL_DIR="$GENTOO_MIRROR/releases/$RELEASE_ARCH/$GENTOO_RELEASE/"
-  if test "x$GENTOO_RELEASE" = "x2007.0" ; then
-    STAGE3_URL="$STAGE3_URL_DIR/stages/$STAGE3_TARBALL"
-  else
-    STAGE3_URL="$STAGE3_URL_DIR/$STAGE3_TARBALL"
-  fi
+  case "$GENTOO_RELEASE" in
+    2007* | current*)
+      STAGE3_URL="$STAGE3_URL_DIR/stages/$STAGE3_TARBALL"
+      ;;
+    *)
+      STAGE3_URL="$STAGE3_URL_DIR/$STAGE3_TARBALL"
+      ;;
+  esac
 
   PORTAGE_TARBALL="portage-latest.tar.bz2"
   PORTAGE_URL="$GENTOO_MIRROR/snapshots/$PORTAGE_TARBALL"
 
   TAR_OPTS="jxf"
 
-  if test "x$VERBOSE" = "xyes" ; then
+  if test "x$VERBOSE" != "x" ; then
     TAR_OPTS="v$TAR_OPTS"
   fi
 
+  cd $GENTOO_CACHE
+
   try_run "Installing Gentoo stage3 tarball from $GENTOO_MIRROR" \
-    "(wget -N -O $GENTOO_CACHE/$STAGE3_TARBALL $STAGE3_URL && \
+    "(wget -N $STAGE3_URL && \
       tar $TAR_OPTS $GENTOO_CACHE/$STAGE3_TARBALL -C $MOUNTPOINT)"
 
   try_run "Installing Gentoo portage tree from $GENTOO_MIRROR" \
-    "(wget -N -O $GENTOO_CACHE/$PORTAGE_TARBALL $PORTAGE_URL) && \
+    "(wget -N $PORTAGE_URL && \
       tar $TAR_OPTS $GENTOO_CACHE/$PORTAGE_TARBALL -C $MOUNTPOINT/usr)"
+
+  # Return to the original working directory
+  cd $SAVED_PWD
 
 #  try_run "Copying kernel modules into root filesystem" \
 #    mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
@@ -59,7 +67,4 @@ init_gentoo() {
   try_run "Initializing Gentoo guest" \
     "(cp initU.d/initU-gentoo $MOUNTPOINT/sbin && \
       chroot $MOUNTPOINT /sbin/initU-gentoo $GUEST_NAME)"
-
-  try_run "Unmounting $MOUNTPOINT" \
-    umount $MOUNTPOINT
 }

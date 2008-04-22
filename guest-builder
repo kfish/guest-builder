@@ -43,6 +43,8 @@ KERNEL_VERSION="2.6.18-6-amd64"
 ## No configurable variables past this point              ##
 ############################################################
 
+SAVED_PWD=`pwd`
+
 VERBOSE=""
 DRYRUN=""
 
@@ -112,6 +114,7 @@ try_run () {
     if test "$?" != "0"; then
       echo "$THIS: Failed command:"
       echo $*
+      cd $SAVED_PWD
       exit 1
     fi
   fi
@@ -343,6 +346,23 @@ init_filesystems() {
 
 }
 
+install_os() {
+  if test "x$DISTRO" != "xnone" ; then
+    for d in $DISTROS_AVAILABLE ; do
+      if test "x$DISTRO" = "x$d" ; then
+        echo >&2 Installing $DISTRO ...
+        eval init_$d $RELEASE
+        distro_installed=1
+      fi
+    done
+    if test "$distro_installed" -eq 0 ; then
+      echo >&2 Installation of $DISTRO failed
+      echo >&2 Available distributions: $DISTROS_AVAILABLE
+      exit 1
+    fi
+  fi
+}
+
 install_kernel() {
 
   try_run "Copying the kernel's image files to $MOUNTPOINT/boot" \
@@ -381,23 +401,8 @@ quiet
 EOF
   fi
 
-}
-
-install_os() {
-  if test "x$DISTRO" != "xnone" ; then
-    for d in $DISTROS_AVAILABLE ; do
-      if test "x$DISTRO" = "x$d" ; then
-        echo >&2 Installing $DISTRO ...
-        eval init_$d $RELEASE
-        distro_installed=1
-      fi
-    done
-    if test "$distro_installed" -eq 0 ; then
-      echo >&2 Installation of $DISTRO failed
-      echo >&2 Available distributions: $DISTROS_AVAILABLE
-      exit 1
-    fi
-  fi
+  try_run "Unmounting $MOUNTPOINT" \
+    umount $MOUNTPOINT
 }
 
 install_grub() {
@@ -432,8 +437,8 @@ generate_macaddr() {
 ############################################################
 
 init_filesystems
-install_kernel
 install_os
+install_kernel
 install_grub
 
 create_qcow2
