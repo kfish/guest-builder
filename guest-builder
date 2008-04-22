@@ -421,7 +421,7 @@ generate_macaddr() {
             done)
 
   try_run "Generated MAC address $MACADDR" \
-    echo $MACADDR > $QCOW2.macaddr
+    (echo $MACADDR > $QCOW2.macaddr)
 }
 
 ############################################################
