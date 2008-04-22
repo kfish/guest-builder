@@ -7,6 +7,8 @@ DEBIAN_MIRROR="http://ftp.jp.debian.org/debian"
 # See http://www.debian.org/releases/
 DEFAULT_DEBRELEASE="etch"
 
+INCLUDE_PACKAGES="grub,ssh,nfs-common"
+
 ############################################################
 ## No configurable variables past this point              ##
 ############################################################
@@ -29,11 +31,11 @@ init_debian() {
     DSTRAP_OPTS="--verbose"
   fi
   try_run "Installing Debian base system from $DEBIAN_MIRROR" \
-    debootstrap $DSTRAP_OPTS --arch $TARGET_ARCH $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
+    debootstrap $DSTRAP_OPTS --arch $TARGET_ARCH --include $INCLUDE_PACKAGES \
+      $DEBRELEASE $MOUNTPOINT $DEBIAN_MIRROR
 
-  try_run "Initializing Debian guest filesystem" \
-    "(cp initU.d/initU-debian $MOUNTPOINT/sbin && \
-      chroot $MOUNTPOINT /sbin/initU-debian $GUEST_NAME)"
+
+  # Prepare config files
 
   if test "x$DRY_RUN" = "x" ; then
     cat > $MOUNTPOINT/etc/apt/sources.list << EOF
@@ -41,5 +43,59 @@ deb $DEBMIRROR $DEBRELEASE main
 deb-src $DEBMIRROR $DEBRELEASE main
 deb ftp://security.debian.org/debian-security $DEBRELEASE/updates main
 EOF
+
+    echo $GUEST_NAME > $MOUNTPOINT/etc/hostname
+
+    cat > $MOUNTPOINT/etc/hosts << EOF
+127.0.0.1       localhost.localdomain   localhost
+$IP      $GUEST_NAME
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+EOF
+
+    cat > $MOUNTPOINT/etc/fstab << EOF
+# /etc/fstab: static file system information.
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+proc		/proc	proc	defaults		0	0
+/dev/hda1	/	ext3	errors=remount-ro	0	1
+EOF
+
+#cd /dev
+#./MAKEDEV tty1 tty2 tty3 tty4 tty5 tty6
+
+    cat > $MOUNTPOINT/etc/network/interfaces << EOF
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+ 
+# The loopback network interface
+auto lo
+iface lo inet loopback
+ 
+# The primary network interface
+auto eth0
+iface eth0 inet dhcp
+EOF
+
+    cat > $MOUNTPOINT/etc/kernel-img.conf << EOF
+# Kernel image management overrides
+# See kernel-img.conf(5) for details
+do_symlinks = yes
+relative_links = yes
+do_bootloader = no
+do_bootfloppy = no
+do_initrd = yes
+link_in_boot = no
+postinst_hook = update-grub
+postrm_hook   = update-grub
+EOF
+
   fi
 }
+
