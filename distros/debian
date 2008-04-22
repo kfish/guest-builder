@@ -59,6 +59,12 @@ ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts
 EOF
 
+    # Append a site-specific /etc/hosts
+    if [ -e $GB_SITE_DIR/etc/hosts ] ; then
+      cat $GB_SITE_DIR/etc/hosts >> $MOUNTPOINT/etc/fstab
+    fi
+
+
     cat > $MOUNTPOINT/etc/fstab << EOF
 # /etc/fstab: static file system information.
 #
@@ -66,6 +72,11 @@ EOF
 proc		/proc	proc	defaults		0	0
 /dev/hda1	/	ext3	errors=remount-ro	0	1
 EOF
+
+    # Append a site-specific /etc/fstab
+    if [ -e $GB_SITE_DIR/etc/fstab ] ; then
+      cat $GB_SITE_DIR/etc/fstab >> $MOUNTPOINT/etc/fstab
+    fi
 
 #cd /dev
 #./MAKEDEV tty1 tty2 tty3 tty4 tty5 tty6

@@ -26,6 +26,9 @@ LOOP=$(losetup -f)
 # Target architecture
 TARGET_ARCH=amd64
 
+# Location of site specific configs, kernels etc.
+GB_SITE_DIR="/var/lib/guest-builder/"
+
 # Root of location of stock kernels and kernel modules
 # Kernel image is looked for in $KERNEL_DIR/boot and
 # modules in $KERNEL_DIR/lib/modules
@@ -34,7 +37,7 @@ TARGET_ARCH=amd64
 #KERNEL_DIR=""
 
 # Specify a location of working kernel
-KERNEL_DIR="/var/lib/guest-builder/$TARGET_ARCH"
+KERNEL_DIR="$GB_SITE_DIR/$TARGET_ARCH"
 
 # Use the running kernel version
 #KERNEL_VERSION=`uname -r`
