@@ -8,6 +8,9 @@ THIS="build-guest"
 # Where to store disk image
 IMGDIR="$HOME/var/guests"
 
+# Where guest-builder caches downloaded tarballs etc.
+CACHE="/var/cache/guest-builder"
+
 # Location of GRUB files
 GRUB_ORIG="/usr/lib/grub/x86_64-pc"
 
@@ -421,7 +424,7 @@ generate_macaddr() {
             done)
 
   try_run "Generated MAC address $MACADDR" \
-    (echo $MACADDR > $QCOW2.macaddr)
+    "(echo $MACADDR > ${QCOW2}.macaddr)"
 }
 
 ############################################################

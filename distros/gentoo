@@ -21,6 +21,8 @@ STAGE3_ARCH=amd64
 
 DISTROS_AVAILABLE="$DISTROS_AVAILABLE gentoo"
 
+GENTOO_CACHE="$CACHE/gentoo"
+
 init_gentoo() {
   verbose_echo Initializing Gentoo ...
 
@@ -43,12 +45,12 @@ init_gentoo() {
   fi
 
   try_run "Installing Gentoo stage3 tarball from $GENTOO_MIRROR" \
-    "(( [ -e $STAGE3_TARBALL ] || wget $STAGE3_URL) && \
-      tar $TAR_OPTS $STAGE3_TARBALL -C $MOUNTPOINT)"
+    "(wget -N -O $GENTOO_CACHE/$STAGE3_TARBALL $STAGE3_URL && \
+      tar $TAR_OPTS $GENTOO_CACHE/$STAGE3_TARBALL -C $MOUNTPOINT)"
 
   try_run "Installing Gentoo portage tree from $GENTOO_MIRROR" \
-    "(( [ -e $PORTAGE_TARBALL ] || wget $PORTAGE_URL) && \
-      tar $TAR_OPTS $PORTAGE_TARBALL -C $MOUNTPOINT/usr)"
+    "(wget -N -O $GENTOO_CACHE/$PORTAGE_TARBALL $PORTAGE_URL) && \
+      tar $TAR_OPTS $GENTOO_CACHE/$PORTAGE_TARBALL -C $MOUNTPOINT/usr)"
 
 #  try_run "Copying kernel modules into root filesystem" \
 #    mkdir -p $MOUNTPOINT/lib/modules/$KERNEL && \
