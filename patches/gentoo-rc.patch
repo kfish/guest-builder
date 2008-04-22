@@ -1,0 +1,20 @@
+--- rc.old	2008-04-22 23:08:21.000000000 +0900
++++ rc	2008-04-22 23:05:01.000000000 +0900
+@@ -222,7 +222,7 @@
+ 	else
+ 		unset mntcmd
+ 	fi
+-	try mount -n ${mntcmd:--t proc proc /proc -o noexec,nosuid,nodev}
++	#try mount -n ${mntcmd:--t proc proc /proc -o noexec,nosuid,nodev}
+ 	eend $?
+ 
+ 	# Start profiling init now we have /proc
+@@ -241,7 +241,7 @@
+ 			else
+ 				unset mntcmd
+ 			fi
+-			try mount -n ${mntcmd:--t sysfs sysfs /sys -o noexec,nosuid,nodev}
++			#try mount -n ${mntcmd:--t sysfs sysfs /sys -o noexec,nosuid,nodev}
+ 			eend $?
+ 		else
+ 			ewarn "No /sys to mount sysfs needed in 2.6 and later kernels!"

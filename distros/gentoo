@@ -3,6 +3,9 @@
 #GENTOO_MIRROR="ftp://ftp.planetmirror.com/pub/gentoo"
 GENTOO_MIRROR="http://ftp.jaist.ac.jp/pub/Linux/Gentoo"
 
+# A local gentoo rsync mirror
+GENTOO_RSYNC=""
+
 # Release version
 #GENTOO_RELEASE="current"
 GENTOO_RELEASE="2008.0_beta1"
@@ -64,7 +67,44 @@ init_gentoo() {
   # Return to the original working directory
   cd $SAVED_PWD
 
-  try_run "Initializing Gentoo guest" \
-    "(cp initU.d/initU-gentoo $MOUNTPOINT/sbin && \
-      chroot $MOUNTPOINT /sbin/initU-gentoo $GUEST_NAME)"
+  ## Generate configuration files
+
+  if test "x$DRY_RUN" = "x" ; then
+    cat > $MOUNTPOINT/etc/conf.d/hostname << EOF
+# /etc/conf.d/hostname
+
+# Set to the hostname of this machine
+HOSTNAME="$GUEST_NAME"
+EOF
+
+
+    # Activate eth0 at boot
+    #rc-update add net.eth0 default
+    ln -s /etc/init.d/net.eth0 $MOUNTPOINT/etc/runlevels/default/net.eth0
+
+
+    cat > $MOUNTPOINT/etc/fstab << EOF
+/dev/hda1	/	ext3	errors=remount-ro	0	1
+proc		/proc	proc	defaults		0	0
+EOF
+
+    # Append a site-specific /etc/fstab
+    if [ -e $GB_SITE_DIR/etc/fstab ] ; then
+      cat $GB_SITE_DIR/etc/fstab >> $MOUNTPOINT/etc/fstab
+    fi
+
+    if test "x$GENTOO_RSYNC" != "x" ; then
+      cat >> $MOUNTPOINT/etc/make.conf << EOF
+SYNC="$GENTOO_RSYNC"
+EOF
+    fi
+
+    # Patch broken /sbin/rc
+    patch < patches/gentoo-rc.patch $MOUNTPOINT/sbin/rc
+
+    # Allow root to log in
+    echo -e ",s/root:\*:/root::/g\\nw"|ed $MOUNTPOINT/etc/shadow
+  fi
+
 }
+
