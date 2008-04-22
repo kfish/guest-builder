@@ -13,10 +13,17 @@ DEFAULT_DEBRELEASE="etch"
 
 DISTROS_AVAILABLE="$DISTROS_AVAILABLE debian"
 
+check_for_apt_cacher() {
+  curl -I "http://localhost:3142/" && \
+    DEBIAN_MIRROR="http://localhost:3142/$(echo $DEBIAN_MIRROR | cut -c 8-)"
+}
+
 init_debian() {
   DEBRELEASE=${RELEASE:-$DEFAULT_DEBRELEASE}
 
   verbose_echo Initializing Debian $DEBRELEASE ...
+
+  check_for_apt_cacher
 
   if test "x$VERBOSE" != "x"; then
     DSTRAP_OPTS="--verbose"
