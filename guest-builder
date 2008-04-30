@@ -43,7 +43,7 @@ KERNEL_DIR="$GB_SITE_DIR/$TARGET_ARCH"
 #KERNEL_VERSION=`uname -r`
 
 # Specify a kernel
-KERNEL_VERSION="2.6.18-6-$TARGET_ARCH"
+KERNEL_VERSION="2.6.18-6-amd64"
 
 ############################################################
 ## No configurable variables past this point              ##
@@ -71,6 +71,7 @@ usage () {
   echo >&2
   echo >&2 "Installation options"
   echo >&2 "  -a ARCH, --arch ARCH        Specify target architecture"
+  echo >&2 "  -k KERNEL, --kernel KERNEL  Specify kernel (\`uname -r\`)"
   echo >&2 "  -d DISTRO, --distro DISTRO  Install DISTRO (default: debian)"
   echo >&2 "  -l RELEASE_NAME, --release RELEASE_NAME"
   echo >&2 "                              Specify name of release to install"
@@ -141,11 +142,11 @@ ROOT_XTYPE="file"
 ROOT_SIZE="2" # GiB
 
 GETOPTEST=`getopt --version`
-SHORTOPTS="nhva:d:l:r:R:s:S:cap"
+SHORTOPTS="nhva:k:d:l:r:R:s:S:cap"
 
 case $GETOPTEST in
 getopt*) # GNU getopt
-  TEMP=`getopt -l dry-run -l verbose -l version -l help -l arch:: -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l arch:: -l kernel:: -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
   ;;
 *) # POSIX getopt ?
   TEMP=`getopt $SHORTOPTS $@`
@@ -176,6 +177,10 @@ while test "X$1" != "X--"; do
     -a|--arch)
       shift
       TARGET_ARCH=$1
+      ;;
+    -k|--kernel)
+      shift
+      KERNEL_VERSION=$1
       ;;
     -d|--distro)
       shift
@@ -375,6 +380,11 @@ install_os() {
 }
 
 install_kernel() {
+
+  if [ ! -e $KERNEL_DIR ] ; then
+    echo "No kernel to install ..."
+    return
+  fi
 
   try_run "Copying the kernel's image files to $MOUNTPOINT/boot" \
     "(mkdir -p $MOUNTPOINT/boot && \
