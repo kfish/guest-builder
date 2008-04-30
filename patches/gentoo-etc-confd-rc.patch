@@ -1,0 +1,11 @@
+--- a/etc/conf.d/rc	2008-04-30 12:11:54.000000000 +0900
++++ b/etc/conf.d/rc	2008-04-30 12:11:40.000000000 +0900
+@@ -34,7 +34,7 @@
+ # If you want module coldplugging but not coldplugging of services then you
+ # can set RC_COLDPLUG="yes" and RC_PLUG_SERVICES="!*"
+ 
+-RC_COLDPLUG="yes"
++RC_COLDPLUG="no"
+ 
+ # Some people want a finer grain over hotplug/coldplug. RC_PLUG_SERVICES is a
+ # list of services that are matched in order, either allowing or not. By

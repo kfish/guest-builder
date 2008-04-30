@@ -100,7 +100,13 @@ EOF
     fi
 
     # Patch broken /sbin/rc
-    patch < patches/gentoo-rc.patch $MOUNTPOINT/sbin/rc
+    patch < patches/gentoo-sbin-rc.patch $MOUNTPOINT/sbin/rc
+
+    # Patch /etc/conf.d/rc
+    patch < patches/gentoo-etc-confd-rc.patch $MOUNTPOINT/etc/conf.d/rc
+
+    # Create /dev/.static/dev mountpoint
+    mkdir -p $MOUNTPOINT/dev/.static/dev
 
     # Allow root to log in
     echo -e ",s/root:\*:/root::/g\\nw"|ed $MOUNTPOINT/etc/shadow
