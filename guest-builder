@@ -20,9 +20,6 @@ DISTRO="debian"
 # Default release to install (blank for per-distro default)
 RELEASE=""
 
-# Loop device
-LOOP=$(losetup -f)
-
 # Target architecture
 TARGET_ARCH=amd64
 
@@ -64,7 +61,12 @@ version () {
 usage () {
   echo >&2 "$THIS, build a guest filesystem"
   echo >&2
-  echo >&2 "Usage: $THIS [options] hostname"
+  echo >&2 "Usage: $THIS [options] command hostname"
+  echo >&2
+  echo >&2 "Commands"
+  echo >&2 "  create                      Create a guest filesystem"
+  echo >&2 "  start                       Start a virtual machine"
+  echo >&2 "  help                        Display this help and exit"
   echo >&2
   echo >&2 "General options"
   echo >&2 "  -n, --dry-run               Don't actually run any commands; just print them."
@@ -132,7 +134,6 @@ try_run () {
 ## BEGIN: Parse options
 ############################################################
 
-do_purge=0
 do_create=0
 do_auto=0
 distro_installed=0
@@ -142,11 +143,11 @@ ROOT_XTYPE="file"
 ROOT_SIZE="2" # GiB
 
 GETOPTEST=`getopt --version`
-SHORTOPTS="nhva:k:d:l:r:R:s:S:cap"
+SHORTOPTS="nhva:k:d:l:r:R:s:S:ca"
 
 case $GETOPTEST in
 getopt*) # GNU getopt
-  TEMP=`getopt -l dry-run -l verbose -l version -l help -l arch:: -l kernel:: -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -l purge -- +$SHORTOPTS $@`
+  TEMP=`getopt -l dry-run -l verbose -l version -l help -l arch:: -l kernel:: -l distro:: -l release:: -l root:: -l root-size:: -l console -l create -l auto -- +$SHORTOPTS $@`
   ;;
 *) # POSIX getopt ?
   TEMP=`getopt $SHORTOPTS $@`
@@ -210,10 +211,6 @@ while test "X$1" != "X--"; do
     -a|--auto)
       do_auto=1
       ;;
-
-    -p|--purge)
-      do_purge=1
-      ;;
   esac
   shift
 done
@@ -224,8 +221,11 @@ if test "x$1" != "x--"; then
 fi
 shift #get rid of the '--'
 
-if test "x$1" = "x"; then
+command=$1
+if test "x$command" = "x"; then
   usage
+else
+  shift
 fi
 
 ############################################################
@@ -242,6 +242,7 @@ fi
 ROOT_LABEL="$GUEST_NAME-root"
 
 QCOW2="$GUEST_PATH/live-0"
+MACADDR_FILE="${QCOW2}.macaddr"
 
 MOUNTPOINT="/mnt/$GUEST_NAME"
 MOUNT_OPTS=""
@@ -257,10 +258,7 @@ MOUNT_OPTS=""
 # exit status
 stat=1
 
-# clean up built files on error
-do_cleanup=1
-
-cleanup () {
+create_cleanup () {
   if test "$do_cleanup" -eq 1 ; then
     try_run "Removing filesystems" rm -rf $GUEST_PATH
     (mount|grep -q $MOUNTPOINT && umount $MOUNTPOINT) || \
@@ -273,31 +271,26 @@ cleanup () {
   exit $stat
 }
 
-trap cleanup 0
-trap 'echo $THIS: Interrupted, cleaning up ...' INT QUIT KILL
+create_init () {
 
-############################################################
-##  Purge (handle --purge)
-############################################################
+  # clean up built files on error
+  do_cleanup=1
 
-if test $do_purge -eq 1 ; then
-  exit 0
-fi
+  trap cleanup_create 0
+  trap 'echo $THIS: Interrupted, cleaning up ...' INT QUIT KILL
 
-############################################################
-## Distros
-############################################################
-
-DISTROS_AVAILABLE=""
-for s in ./distros/*; do
-  source $s
-done
+  ## Distros
+  DISTROS_AVAILABLE=""
+  for s in ./distros/*; do
+    source $s
+  done
+}
 
 ############################################################
 ## Actions
 ############################################################
 
-init_filesystems() {
+create_init_filesystems () {
 
   if [ -e $GUEST_PATH ] ; then
     echo "$GUEST_PATH already exists, exiting ..."
@@ -317,6 +310,9 @@ init_filesystems() {
     ROOT_XTYPE="phy"
   else
     ROOT_DIR=`dirname $ROOT`
+
+    try_run "Finding loop device" \
+      "(LOOP=$(losetup -f) && verbose_echo $LOOP)"
 
     try_run "Copying bootloaders for root filesystem" \
       "(mkdir -p $ROOT_DIR && \
@@ -362,7 +358,7 @@ init_filesystems() {
 
 }
 
-install_os() {
+create_install_os () {
   if test "x$DISTRO" != "xnone" ; then
     for d in $DISTROS_AVAILABLE ; do
       if test "x$DISTRO" = "x$d" ; then
@@ -379,7 +375,7 @@ install_os() {
   fi
 }
 
-install_kernel() {
+create_install_kernel () {
 
   if [ ! -e $KERNEL_DIR ] ; then
     echo "No kernel to install ..."
@@ -426,7 +422,7 @@ EOF
     umount $MOUNTPOINT
 }
 
-install_grub() {
+create_install_grub() {
   try_run "Installing grub to disk bootsector" \
     grub --device-map=/dev/null << EOF
 device (hd0) $ROOT
@@ -450,30 +446,59 @@ generate_macaddr() {
             done)
 
   try_run "Generated MAC address $MACADDR" \
-    "(echo $MACADDR > ${QCOW2}.macaddr)"
+    "(echo $MACADDR > $MACADDR_FILE)"
+}
+
+############################################################
+## start
+############################################################
+
+start_kvm () {
+  try_run "Starting kvm" \
+    kvm $QCOW2 -net nic,macaddr=$(cat $MACADDR_FILE) -net tap $*
+}
+
+
+############################################################
+## create
+############################################################
+
+create () {
+  create_init
+  create_init_filesystems
+  create_install_os
+  create_install_kernel
+  create_install_grub
+
+  create_qcow2
+  generate_macaddr
+
+  # From this point, the filesystem and config are all set up
+  do_cleanup=0
+
+  if test "$distro_installed" -eq 1 ; then
+    if test "$do_create" -eq 1 ; then
+      start_kvm $*
+    fi
+  fi
+
+  # Set exit status to 0
+  stat=0
 }
 
 ############################################################
 ## Main
 ############################################################
 
-init_filesystems
-install_os
-install_kernel
-install_grub
+case $command in
+  help )
+    usage
+    ;;
 
-create_qcow2
-generate_macaddr
-
-# From this point, the filesystem and config are all set up
-do_cleanup=0
-
-if test "$distro_installed" -eq 1 ; then
-  if test "$do_create" -eq 1 ; then
-    try_run "Starting kvm" \
-      kvm $QCOW2 -net nic,macaddr=$MACADDR -net tap
-  fi
-fi
-
-# Set exit status to 0
-stat=0
+  create)
+    create $*
+    ;;
+  start|run)
+    start_kvm $*
+    ;;
+esac
