@@ -39,8 +39,8 @@ init_debian() {
 
   if test "x$DRY_RUN" = "x" ; then
     cat > $MOUNTPOINT/etc/apt/sources.list << EOF
-deb $DEBMIRROR $DEBRELEASE main
-deb-src $DEBMIRROR $DEBRELEASE main
+deb $DEBIAN_MIRROR $DEBRELEASE main
+deb-src $DEBIAN_MIRROR $DEBRELEASE main
 deb ftp://security.debian.org/debian-security $DEBRELEASE/updates main
 EOF
 
