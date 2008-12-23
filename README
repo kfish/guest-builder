@@ -1,0 +1,34 @@
+build-guest, build a guest filesystem
+
+Usage: build-guest [options] command hostname
+
+Commands
+  create                      Create a guest filesystem
+  start                       Start a virtual machine
+  help                        Display this help and exit
+
+General options
+  -n, --dry-run               Don't actually run any commands; just print them.
+
+Installation options
+  -a ARCH, --arch ARCH        Specify target architecture
+  -k KERNEL, --kernel KERNEL  Specify kernel (`uname -r`)
+  -d DISTRO, --distro DISTRO  Install DISTRO (default: debian)
+  -l RELEASE_NAME, --release RELEASE_NAME
+                              Specify name of release to install
+  -r root, --root root        Specify root device or filename
+  -R size, --root-size size   Set the root filesystem size (GB)
+
+Virtualization options
+  -c, --console               Create a running instance of the domain, and
+                              attach to its console
+  --create                    Create a running instance of the domain
+
+Removal options
+  -p, --purge                 Purge the filesystems and config for hostname
+
+Miscellaneous options
+  -h, --help                  Display this help and exit
+  -v, --verbose               Print informative messages
+  --version                   Output version information and exit
+
